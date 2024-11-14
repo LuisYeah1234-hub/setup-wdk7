@@ -28106,13 +28106,25 @@ async function run() {
     await exec.exec('cmd', ['/c', `set && cls && ${setenv} && cls && set`], { listeners: { stdout: (data) => { cmd_output_string += data.toString(); }, stderr: (data) => { core.error(data.toString()); } } });
 
     const outputParts = cmd_output_string.split('\f');
+    const oldEnvironment = outputParts[0].split('\r\n')
     const newEnvironment = outputParts[2].split('\r\n');
 
     // Unlike msvc-dev-cmd by ilammy. we need to get the environment variables set by WDK 7
+    
+    // Convert old environment lines into a dictionary for easier lookup.
+    let oldVars = {}
+    for (let string of oldEnvironment) {
+        const [name, value] = string.split('=')
+        oldVars[name] = value
+    }
+      
     for (const line of newEnvironment) {
         if (line.includes('=')) {
-            const [name, value] = line.split('=');
-            core.exportVariable(name, value);
+            let [name, new_value] = line.split('=')
+            let old_value = oldVars[name]
+            if (new_value !== old_value) {
+               core.exportVariable(name, new_value);
+            }
         }
     }
 
