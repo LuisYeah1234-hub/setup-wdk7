@@ -28071,6 +28071,24 @@ const exec = __nccwpck_require__(8812);
 const fs = __nccwpck_require__(7147);
 const path = __nccwpck_require__(1017);
 
+// Valid target values for WDK 7
+const validArchitectures = ['64', 'x64', 'I386', 'IA64', 'IA32', 'x86', 'x32-64'];
+const validBuildTypes = ['f', 'fre', 'free', 'c', 'chk', 'CHK', 'checked'];
+const validOSVersions = ['Wlh', 'WNet', 'WXP', 'WIN7'];
+
+// Normalize input to lowercase for case-insensitive comparison
+const normalize = (input) => input.trim().toLowerCase();
+
+// Validate input against its corresponding valid set
+const validate = (input, validValues, inputName) => {
+  const normalizedInput = normalize(input);  // Normalize the input
+  if (!validValues.some(validValue => normalize(validValue) === normalizedInput)) {
+    core.setFailed(`${inputName} value "${input}" is invalid.`);
+    return false;
+  }
+  return true;
+};
+
 async function run() {
   try {
     if (process.platform != 'win32') {
@@ -28084,12 +28102,21 @@ async function run() {
     const os = core.getInput('os');
     const workspace = process.env.GITHUB_WORKSPACE;
 
+    if (!validate(arch, validArchitectures, 'Arch')) return; // Exit if invalid arch
+    if (!validate(type, validBuildTypes, 'Type')) return;    // Exit if invalid type
+    if (!validate(os, validOSVersions, 'OS')) return;      // Exit if invalid os
+
+    // Normalize inputs for case-insensitive comparison
+    const normalizeArch = normalize(arch);
+    const normalizeOs = normalize(os);
+
     // Fail on incompatible configurations
-    if (os === 'wxp' && (arch === 'x64' || arch === 'ia64')) {
+    if (normalizeOs === 'wxp' && ['x64', 'x32-64', 'ia64', '64'].includes(normalizeArch)) {
       core.setFailed(`${os} does not support building for ${arch}!! Failing..`);
       return;
     }
 
+    core.startGroup('WDK Installation');
     await exec.exec('aria2c', ['https://archive.org/download/grmwdk-en-7600-1/GRMWDK_EN_7600_1.ISO'], { cwd: workspace });
 
     await exec.exec('powershell', ['-Command', `$mountResult = Mount-DiskImage -ImagePath "${path.join(workspace, 'GRMWDK_EN_7600_1.ISO')}" -PassThru; $driveLetter = ($mountResult | Get-Volume).DriveLetter; Write-Output "Mounted WDK ISO to drive $driveLetter"`], { cwd: workspace });
@@ -28098,7 +28125,9 @@ async function run() {
 
     await exec.exec('powershell', [`Dismount-DiskImage -ImagePath "${path.join(workspace, 'GRMWDK_EN_7600_1.ISO')}"`]);
     fs.unlinkSync(path.join(workspace, 'GRMWDK_EN_7600_1.ISO'));
+    core.endGroup();
 
+    core.startGroup('Prepare WDK Build Environment');
     const wdkDir = `%SystemDrive%\\WinDDK\\7600.16385.win7_wdk.100208-1538`;
     const setenv = `${wdkDir}\\bin\\setenv.bat ${wdkDir} ${type} ${arch} ${os} no_oacr`;
 
@@ -28127,6 +28156,7 @@ async function run() {
             }
         }
     }
+    core.endGroup();
 
     core.info(`Configured Windows Driver Kit 7.1.0 Command Prompt`)
 
