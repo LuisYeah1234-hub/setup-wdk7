@@ -28134,9 +28134,9 @@ async function run() {
     let cmd_output_string = '';
     let Output = '';
       
-    await exec.exec('cmd', ['/c', `dir %SystemDrive%`],  { listeners: { stdout: (data) => { cmd_output_string += data.toString(); }, stderr: (data) => { core.error(data.toString()) });
+    await exec.exec('cmd', ['/c', `dir %SystemDrive%`],  { listeners: { stdout: (data) => { cmd_output_string += data.toString(); }, stderr: (data) => { core.error(data.toString()) } } });
     await exec.exec('cmd', ['/c', `set && cls && ${setenv} && cls && set`], { listeners: { stdout: (data) => { cmd_output_string += data.toString(); }, stderr: (data) => { core.error(data.toString()); } }, silent: true });
-        await exec.exec('cmd', ['/c', `dir %SystemDrive%\\WinDDK`],  { listeners: { stdout: (data) => { cmd_output_string += data.toString(); }, stderr: (data) => { core.error(data.toString()) });  
+    await exec.exec('cmd', ['/c', `dir %SystemDrive%\\WinDDK`],  { listeners: { stdout: (data) => { cmd_output_string += data.toString(); }, stderr: (data) => { core.error(data.toString()) } } });  
 
     const outputParts = cmd_output_string.split('\f');
     const oldEnvironment = outputParts[0].split('\r\n')
